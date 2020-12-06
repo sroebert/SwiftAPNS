@@ -5,11 +5,15 @@ final class SendCommand: Command {
     
     // MARK: - Types
     
-    private enum SendError: Error, CustomStringConvertible {
+    private enum CommandError: Error, CustomStringConvertible {
         case invalidPriorty
         case invalidKind
+        case invalidEnvironment
         case couldNotLoadPayloadFile
         case missingPayload
+        case invalidToken
+        case connectionError
+        case responseError(Int?, String?)
         
         var description: String {
             switch self {
@@ -21,10 +25,22 @@ final class SendCommand: Command {
                     .map { $0.rawValue }
                     .joined(separator: ", ")
                 return "Type must be one of the following values: \(types)."
+            case .invalidEnvironment:
+                return "Environment must be either development or production."
             case .couldNotLoadPayloadFile:
                 return "Failed to read payload file."
             case .missingPayload:
                 return "Either message, payload-path or payload has to be specified."
+            case .invalidToken:
+                return "The device token is invalid."
+            case .connectionError, .responseError(nil, nil):
+                return "Could not connect to the APNS server."
+            case .responseError(let statusCode?, let message?):
+                return "Failed to send push notification (\(statusCode)):\n\(message)"
+            case .responseError(nil, let message?):
+                return "Failed to send push notification:\n\(message)"
+            case .responseError(let statusCode?, nil):
+                return "Failed to send push notification (\(statusCode))."
             }
         }
     }
@@ -40,6 +56,9 @@ final class SendCommand: Command {
         
         @Option(name: "payload", help: "A JSON object to send as the payload.")
         var payload: String?
+        
+        @Option(name: "environment", help: "The APNS environment to send the push notification to (development or production).")
+        var environment: String?
         
         @Option(name: "topic", help: "The topic (bundle id) for the push notification.")
         var topic: String?
@@ -76,12 +95,21 @@ final class SendCommand: Command {
         let notification = try createNotification(from: signature)
         let sender = try createSender(from: signature)
         let deviceToken = try requireOption(signature.$deviceToken)
+        let environment = try getEnvironment(from: signature)
         
-        try sender.send(
-            notification,
-            to: deviceToken,
-            environment: .production
-        )
+        do {
+            try sender.send(
+                notification,
+                to: deviceToken,
+                environment: environment
+            )
+        } catch PushNotificationSender.SendError.invalidToken {
+            throw CommandError.invalidToken
+        } catch PushNotificationSender.SendError.urlError(_) {
+            throw CommandError.connectionError
+        } catch PushNotificationSender.SendError.responseError(let responseCode, let response) {
+            throw CommandError.responseError(responseCode, response)
+        }
     }
     
     // MARK: - Private
@@ -92,7 +120,7 @@ final class SendCommand: Command {
         }
         
         guard let kind = PushNotification.Kind(rawValue: kindValue) else {
-            throw SendError.invalidKind
+            throw CommandError.invalidKind
         }
         
         return kind
@@ -104,23 +132,35 @@ final class SendCommand: Command {
         }
         
         guard let priority = PushNotification.Priority(rawValue: priorityValue) else {
-            throw SendError.invalidPriorty
+            throw CommandError.invalidPriorty
         }
         
         return priority
     }
     
-    private func getPayloadData(from signature: Signature) throws -> Data? {
+    private func getEnvironment(from signature: Signature) throws -> PushNotificationSender.Environment {
+        guard let environmentValue = signature.environment else {
+            return .production
+        }
+        
+        guard let environment = PushNotificationSender.Environment(rawValue: environmentValue) else {
+            throw CommandError.invalidEnvironment
+        }
+        
+        return environment
+    }
+    
+    private func getPayloadData(from signature: Signature) throws -> Data {
         if let payloadPath = signature.payloadPath {
             do {
                 return try Data(contentsOf: URL(fileURLWithPath: payloadPath))
             } catch {
-                throw SendError.couldNotLoadPayloadFile
+                throw CommandError.couldNotLoadPayloadFile
             }
         }
         
         if let payload = signature.payload {
-            return payload.data(using: .utf8)
+            return payload.data(using: .utf8) ?? Data()
         }
         
         if let message = signature.message {
@@ -132,12 +172,12 @@ final class SendCommand: Command {
             ])
         }
         
-        throw SendError.missingPayload
+        throw CommandError.missingPayload
     }
     
     private func requireOption<T>(_ option: Option<T>) throws -> T {
         guard let value = option.wrappedValue else {
-            throw CommandError.missingRequiredArgument(option.name)
+            throw ConsoleKit.CommandError.missingRequiredArgument(option.name)
         }
         return value
     }
@@ -148,7 +188,7 @@ final class SendCommand: Command {
         let priority = try getPriority(from: signature)
         let payload = try getPayloadData(from: signature)
         
-        return try PushNotification(
+        return PushNotification(
             kind: kind,
             topic: topic,
             priority: priority,

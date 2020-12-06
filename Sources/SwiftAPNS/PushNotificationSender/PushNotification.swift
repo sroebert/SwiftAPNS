@@ -50,26 +50,4 @@ struct PushNotification {
         self.collapseIdentifier = collapseIdentifier
         self.payload = payload
     }
-    
-    init<T: Encodable>(
-        id: UUID? = UUID(),
-        kind: Kind = .alert,
-        topic: String,
-        priority: Priority = .immediate,
-        expirationDate: Date? = nil,
-        collapseIdentifier: String? = nil,
-        payload: T
-    ) throws {
-        let payloadData = try JSONEncoder().encode(payload)
-        
-        self.init(
-            id: id,
-            kind: kind,
-            topic: topic,
-            priority: priority,
-            expirationDate: expirationDate,
-            collapseIdentifier: collapseIdentifier,
-            payload: payloadData
-        )
-    }
 }

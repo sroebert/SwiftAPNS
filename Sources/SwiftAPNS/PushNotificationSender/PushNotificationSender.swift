@@ -4,7 +4,7 @@ class PushNotificationSender: NSObject, URLSessionDelegate {
     
     // MARK: - Types
     
-    enum Environment {
+    enum Environment: String {
         case development
         case production
         
@@ -104,7 +104,6 @@ class PushNotificationSender: NSObject, URLSessionDelegate {
     }
     
     public func send(_ notification: PushNotification, to deviceToken: String, environment: Environment = .production) throws {
-        
         let request = try setupRequest(
             for: notification,
             to: deviceToken,
