@@ -9,7 +9,7 @@ struct PushNotification {
         case conservePower = 5
     }
     
-    enum `Type`: String {
+    enum Kind: String, CaseIterable {
         case alert
         case background
         case voip
@@ -21,7 +21,7 @@ struct PushNotification {
     // MARK: - Public Vars
     
     var id: UUID?
-    var type: Type
+    var kind: Kind
     
     var topic: String
     var priority: Priority
@@ -35,7 +35,7 @@ struct PushNotification {
     
     init(
         id: UUID? = UUID(),
-        type: Type = .alert,
+        kind: Kind = .alert,
         topic: String,
         priority: Priority = .immediate,
         expirationDate: Date? = nil,
@@ -43,7 +43,7 @@ struct PushNotification {
         payload: Data
     ) {
         self.id = id
-        self.type = type
+        self.kind = kind
         self.topic = topic
         self.priority = priority
         self.expirationDate = expirationDate
@@ -53,7 +53,7 @@ struct PushNotification {
     
     init<T: Encodable>(
         id: UUID? = UUID(),
-        type: Type = .alert,
+        kind: Kind = .alert,
         topic: String,
         priority: Priority = .immediate,
         expirationDate: Date? = nil,
@@ -64,7 +64,7 @@ struct PushNotification {
         
         self.init(
             id: id,
-            type: type,
+            kind: kind,
             topic: topic,
             priority: priority,
             expirationDate: expirationDate,

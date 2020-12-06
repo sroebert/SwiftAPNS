@@ -82,7 +82,7 @@ class PushNotificationSender: NSObject, URLSessionDelegate {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         
-        request.setValue(notification.type.rawValue, forHTTPHeaderField: "apns-push-type")
+        request.setValue(notification.kind.rawValue, forHTTPHeaderField: "apns-push-type")
         request.setValue("\(notification.priority.rawValue)", forHTTPHeaderField: "apns-priority")
         request.setValue(notification.topic, forHTTPHeaderField: "apns-topic")
         
