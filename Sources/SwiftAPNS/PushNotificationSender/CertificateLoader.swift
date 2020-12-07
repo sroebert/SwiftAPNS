@@ -9,9 +9,21 @@
 import Foundation
 
 enum CertificateLoader {
-    static func loadCertificate(atPath path: String, passphrase: String) -> (identity: SecIdentity, certificate: SecCertificate)? {
+    enum LoadError: Error {
+        case couldNotCreateTemporaryKeychain
+        case couldNotLoadCertificateFile
+        case invalidCertificate
+        case emptyCertificatePassphrase
+        case invalidCertificatePassphrase
+    }
+    
+    static func loadCertificate(atPath path: String, passphrase: String) throws -> (identity: SecIdentity, certificate: SecCertificate) {
+        guard !passphrase.isEmpty else {
+            throw LoadError.emptyCertificatePassphrase
+        }
+        
         guard let (keychain, keychainURL) = createTemporaryKeychain() else {
-            return nil
+            throw LoadError.couldNotCreateTemporaryKeychain
         }
         
         defer {
@@ -19,7 +31,7 @@ enum CertificateLoader {
         }
         
         guard let keyData = try? Data(contentsOf: URL(fileURLWithPath: path)) else {
-            return nil
+            throw LoadError.couldNotLoadCertificateFile
         }
         
         var options: [CFString: Any] = [:]
@@ -35,14 +47,17 @@ enum CertificateLoader {
             CFArrayGetCount(items) > 0,
             let dictionary = (items as [AnyObject])[0] as? [CFString: Any]
         else {
-            return nil
+            if importResult == errSecPkcs12VerifyFailure {
+                throw LoadError.invalidCertificatePassphrase
+            }
+            throw LoadError.invalidCertificate
         }
         
         guard
             let anyIdentity = dictionary[kSecImportItemIdentity] as CFTypeRef?,
             CFGetTypeID(anyIdentity) == SecIdentityGetTypeID()
         else {
-            return nil
+            throw LoadError.invalidCertificate
         }
         
         let identity = anyIdentity as! SecIdentity // swiftlint:disable:this force_cast
@@ -53,7 +68,7 @@ enum CertificateLoader {
             copyResult == errSecSuccess,
             let certificate = copiedCertificate
         else {
-            return nil
+            throw LoadError.invalidCertificate
         }
         
         return (identity, certificate)

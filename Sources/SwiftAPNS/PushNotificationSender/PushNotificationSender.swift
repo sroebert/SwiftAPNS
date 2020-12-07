@@ -20,6 +20,11 @@ class PushNotificationSender: NSObject, URLSessionDelegate {
     
     enum SendError: Error {
         case invalidToken
+        case couldNotCreateTemporaryKeychain
+        case couldNotLoadCertificateFile
+        case invalidCertificate
+        case emptyCertificatePassphrase
+        case invalidCertificatePassphrase
         case urlError(Error)
         case responseError(Int?, String?)
     }
@@ -30,18 +35,26 @@ class PushNotificationSender: NSObject, URLSessionDelegate {
     
     private var session: URLSession! // swiftlint:disable:this implicitly_unwrapped_optional
     
-    private let identity: SecIdentity?
-    private let certificate: SecCertificate?
+    private let identity: SecIdentity
+    private let certificate: SecCertificate
     
     // MARK: - Object Lifecycle
     
-    init(certificatePath: String, passphrase: String) {
-        if let result = CertificateLoader.loadCertificate(atPath: certificatePath, passphrase: passphrase) {
+    init(certificatePath: String, passphrase: String) throws {
+        do {
+            let result = try CertificateLoader.loadCertificate(atPath: certificatePath, passphrase: passphrase)
             identity = result.identity
             certificate = result.certificate
-        } else {
-            identity = nil
-            certificate = nil
+        } catch CertificateLoader.LoadError.couldNotCreateTemporaryKeychain {
+            throw SendError.couldNotCreateTemporaryKeychain
+        } catch CertificateLoader.LoadError.couldNotLoadCertificateFile {
+            throw SendError.couldNotLoadCertificateFile
+        } catch CertificateLoader.LoadError.invalidCertificate {
+            throw SendError.invalidCertificate
+        } catch CertificateLoader.LoadError.emptyCertificatePassphrase {
+            throw SendError.emptyCertificatePassphrase
+        } catch CertificateLoader.LoadError.invalidCertificatePassphrase {
+            throw SendError.invalidCertificatePassphrase
         }
         
         super.init()
@@ -52,11 +65,6 @@ class PushNotificationSender: NSObject, URLSessionDelegate {
     // MARK: - URLSessionDelegate
     
     func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        
-        guard let identity = identity, let certificate = certificate else {
-            completionHandler(.cancelAuthenticationChallenge, nil)
-            return
-        }
         
         let credential = URLCredential(
             identity: identity,

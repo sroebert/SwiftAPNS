@@ -29,7 +29,7 @@ struct PushNotification {
     var expirationDate: Date?
     var collapseIdentifier: String?
     
-    var payload: Data
+    var payload: Data?
     
     // MARK: - Object Lifecycle
     
@@ -40,7 +40,7 @@ struct PushNotification {
         priority: Priority = .immediate,
         expirationDate: Date? = nil,
         collapseIdentifier: String? = nil,
-        payload: Data
+        payload: Data?
     ) {
         self.id = id
         self.kind = kind

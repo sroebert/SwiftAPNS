@@ -10,11 +10,11 @@ let package = Package(
         .executable(name: "apns", targets: ["SwiftAPNS"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/vapor/console-kit.git", from: "4.2.0"),
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "0.3.1"),
     ],
     targets: [
         .target(name: "SwiftAPNS", dependencies: [
-            .product(name: "ConsoleKit", package: "console-kit"),
+            .product(name: "ArgumentParser", package: "swift-argument-parser"),
         ]),
     ]
 )
