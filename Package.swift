@@ -2,18 +2,18 @@
 import PackageDescription
 
 let package = Package(
-    name: "SwiftAPNS",
+    name: "APNS",
     platforms: [
        .macOS(.v10_15)
     ],
     products: [
-        .executable(name: "apns", targets: ["SwiftAPNS"]),
+        .executable(name: "apns", targets: ["APNS"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser", from: "0.3.1"),
     ],
     targets: [
-        .target(name: "SwiftAPNS", dependencies: [
+        .target(name: "APNS", dependencies: [
             .product(name: "ArgumentParser", package: "swift-argument-parser"),
         ]),
     ]
